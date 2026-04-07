@@ -1,0 +1,8 @@
+{
+  "name": "AI Smart Electronics Vision Assistant",
+  "description": "A futuristic AI-powered lab assistant for electronic component detection, resistor color code calculation, and interactive learning with voice support.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

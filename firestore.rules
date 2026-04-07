@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isValidScan(data) {
+      return data.type is string && 
+             data.formatted is string && 
+             data.timestamp is timestamp;
+    }
+
+    match /scans/{scanId} {
+      // Allow anyone to read scans for the dashboard/history
+      // In a real app, we'd scope this to the user
+      allow read: if true;
+      allow create: if isValidScan(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /test/{docId} {
+      allow read: if true;
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "entities": {
+    "Scan": {
+      "title": "Scan Record",
+      "description": "A record of a detected electronic component.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "description": "Component type (e.g., Resistor)" },
+        "formatted": { "type": "string", "description": "Human-readable value (e.g., 1k Ohm)" },
+        "bands": { "type": "array", "items": { "type": "string" }, "description": "Detected color bands" },
+        "resistance": { "type": "number", "description": "Calculated resistance in Ohms" },
+        "tolerance": { "type": "number", "description": "Tolerance percentage" },
+        "confidence": { "type": "number", "description": "AI detection confidence score" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the scan occurred" }
+      },
+      "required": ["type", "formatted", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/scans/{scanId}": {
+      "schema": "Scan",
+      "description": "Collection of all component scans."
+    }
+  }
+}
