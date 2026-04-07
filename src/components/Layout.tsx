@@ -37,24 +37,29 @@ export default function Layout({ children, activeTab, setActiveTab, lang, setLan
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/10 blur-[120px]" />
       </div>
 
-      {/* Sidebar */}
-      <nav className="fixed left-6 top-1/2 -translate-y-1/2 w-20 h-[80vh] flex flex-col items-center justify-between py-8 z-50 glass rounded-3xl border border-white/10">
-        <div className="flex flex-col gap-8">
-          <div className="p-3 rounded-2xl bg-cyan-500/20 text-cyan-400">
+      {/* Sidebar / Bottom Bar */}
+      <nav className={cn(
+        "fixed z-50 glass border border-white/10 transition-all duration-300",
+        "lg:left-6 lg:top-1/2 lg:-translate-y-1/2 lg:w-20 lg:h-[80vh] lg:flex-col lg:rounded-3xl lg:py-8 lg:px-0",
+        "bottom-0 left-0 right-0 h-20 flex-row rounded-t-3xl py-0 px-6 flex items-center justify-between lg:justify-between"
+      )}>
+        <div className="flex lg:flex-col items-center gap-4 lg:gap-8 w-full lg:w-auto justify-around lg:justify-start">
+          <div className="hidden lg:block p-3 rounded-2xl bg-cyan-500/20 text-cyan-400">
             <Cpu size={32} />
           </div>
-          <div className="flex flex-col gap-4">
+          <div className="flex lg:flex-col gap-2 lg:gap-4 w-full lg:w-auto justify-around lg:justify-start">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "p-4 rounded-2xl transition-all duration-300 group relative",
+                  "p-3 lg:p-4 rounded-2xl transition-all duration-300 group relative flex flex-col items-center gap-1",
                   activeTab === tab.id ? "bg-white/10 text-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.2)]" : "text-slate-400 hover:text-white hover:bg-white/5"
                 )}
               >
                 <tab.icon size={24} />
-                <span className="absolute left-24 px-3 py-1 rounded-lg bg-slate-800 text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                <span className="text-[10px] lg:hidden font-medium">{tab.label}</span>
+                <span className="hidden lg:block absolute left-24 px-3 py-1 rounded-lg bg-slate-800 text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                   {tab.label}
                 </span>
               </button>
@@ -62,7 +67,7 @@ export default function Layout({ children, activeTab, setActiveTab, lang, setLan
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="hidden lg:flex flex-col gap-4">
           <button 
             onClick={() => setLang(lang === 'en' ? 'mr' : 'en')}
             className="p-4 rounded-2xl text-slate-400 hover:text-white transition-colors"
@@ -79,24 +84,36 @@ export default function Layout({ children, activeTab, setActiveTab, lang, setLan
       </nav>
 
       {/* Main Content */}
-      <main className="ml-32 p-8">
-        <header className="mb-12 flex justify-between items-end">
+      <main className="lg:ml-32 p-4 lg:p-8 pb-24 lg:pb-8">
+        <header className="mb-8 lg:mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
           <div>
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-4xl font-bold tracking-tight mb-2"
-            >
-              {lang === 'en' ? 'AI Smart Vision' : 'AI स्मार्ट दृष्टी'}
-            </motion.h1>
-            <p className="text-slate-400">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="lg:hidden p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
+                <Cpu size={24} />
+              </div>
+              <motion.h1 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-3xl lg:text-4xl font-bold tracking-tight"
+              >
+                {lang === 'en' ? 'AI Smart Vision' : 'AI स्मार्ट दृष्टी'}
+              </motion.h1>
+            </div>
+            <p className="text-slate-400 text-sm lg:text-base">
               {lang === 'en' ? 'Futuristic Electronics Lab Assistant' : 'भविष्यकालीन इलेक्ट्रॉनिक्स लॅब असिस्टंट'}
             </p>
           </div>
-          <div className="flex gap-4">
-            <div className="glass px-6 py-3 rounded-2xl border border-white/10 flex items-center gap-3">
+          <div className="flex gap-4 w-full lg:w-auto">
+            <button 
+              onClick={() => setLang(lang === 'en' ? 'mr' : 'en')}
+              className="lg:hidden glass flex-1 py-3 rounded-2xl border border-white/10 flex items-center justify-center gap-2 text-sm font-medium"
+            >
+              <Languages size={18} />
+              {lang === 'en' ? 'मराठी' : 'English'}
+            </button>
+            <div className="glass px-6 py-3 rounded-2xl border border-white/10 flex items-center gap-3 flex-1 lg:flex-none justify-center">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-sm font-medium">System Online</span>
+              <span className="text-sm font-medium">Online</span>
             </div>
           </div>
         </header>

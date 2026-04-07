@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, Scan, Info, Zap, AlertCircle, GraduationCap, Upload, Wrench, RefreshCw } from 'lucide-react';
+import { Camera, Scan, Info, Zap, AlertCircle, GraduationCap, Upload, Wrench, RefreshCw, ExternalLink } from 'lucide-react';
 import { calculateResistance } from '../lib/resistorLogic';
 import { explainComponent, analyzeImage, suggestReplacement } from '../lib/gemini';
 import { db, collection, addDoc } from '../lib/firebase';
@@ -26,6 +26,7 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
   const [isLoadingReplacement, setIsLoadingReplacement] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const lastAnalysisTime = useRef<number>(0);
 
   const speak = (text: string) => {
@@ -68,6 +69,7 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
   }, [facingMode]);
 
   const startCamera = async () => {
+    setCameraError(null);
     try {
       // Stop existing tracks
       if (videoRef.current?.srcObject) {
@@ -83,6 +85,7 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
       }
     } catch (err) {
       console.error("Camera access denied:", err);
+      setCameraError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -281,19 +284,54 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
       {/* Camera Section */}
       <div className="lg:col-span-2 space-y-6">
         <div className="relative aspect-video rounded-3xl overflow-hidden border border-white/10 bg-black shadow-2xl">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          <canvas
-            ref={canvasRef}
-            width={640}
-            height={480}
-            className="absolute inset-0 w-full h-full pointer-events-none"
-          />
+          {cameraError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900/80 backdrop-blur-md z-10">
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+                <AlertCircle className="text-red-400" size={32} />
+              </div>
+              <h3 className="text-xl font-bold mb-2">
+                {lang === 'en' ? 'Camera Access Denied' : 'कॅमेरा प्रवेश नाकारला'}
+              </h3>
+              <p className="text-slate-400 text-sm mb-6 max-w-xs">
+                {lang === 'en' 
+                  ? 'To use the AI Vision on mobile, please open the app in a new tab or grant camera permissions in your browser settings.' 
+                  : 'मोबाईलवर AI व्हिजन वापरण्यासाठी, कृपया नवीन टॅबमध्ये ॲप उघडा किंवा तुमच्या ब्राउझर सेटिंग्जमध्ये कॅमेरा परवानग्या द्या.'}
+              </p>
+              <div className="flex flex-col gap-3 w-full max-w-xs">
+                <a 
+                  href={window.location.href} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full py-3 rounded-xl bg-cyan-500 text-black font-bold flex items-center justify-center gap-2 hover:bg-cyan-400 transition-all"
+                >
+                  <ExternalLink size={18} />
+                  {lang === 'en' ? 'Open in New Tab' : 'नवीन टॅबमध्ये उघडा'}
+                </a>
+                <button 
+                  onClick={startCamera}
+                  className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-all"
+                >
+                  {lang === 'en' ? 'Try Again' : 'पुन्हा प्रयत्न करा'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <canvas
+                ref={canvasRef}
+                width={640}
+                height={480}
+                className="absolute inset-0 w-full h-full pointer-events-none"
+              />
+            </>
+          )}
           
           {/* Overlay UI */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">

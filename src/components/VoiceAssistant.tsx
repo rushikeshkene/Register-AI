@@ -67,7 +67,7 @@ export default function VoiceAssistant({ lang, onCommand }: VoiceAssistantProps)
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-4">
+    <div className="fixed bottom-24 lg:bottom-8 right-6 lg:right-8 z-50 flex flex-col items-end gap-4">
       <AnimatePresence>
         {transcript && (
           <motion.div
