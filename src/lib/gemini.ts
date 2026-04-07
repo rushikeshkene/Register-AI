@@ -1,8 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.GEMINI_API_KEY;
+const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
 if (!apiKey) {
-  console.warn("GEMINI_API_KEY is missing. AI features will be limited.");
+  console.warn("GEMINI_API_KEY is missing. AI features will be limited. Please set VITE_GEMINI_API_KEY in your environment.");
 }
 
 const ai = new GoogleGenAI({ apiKey: apiKey || "" });
@@ -20,7 +20,9 @@ export async function explainComponent(componentType: string, details: string, l
     return response.text;
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "AI explanation unavailable.";
+    return lang === 'en' 
+      ? "AI explanation unavailable. Please check your API key and internet connection." 
+      : "AI स्पष्टीकरण उपलब्ध नाही. कृपया तुमची API की आणि इंटरनेट कनेक्शन तपासा.";
   }
 }
 
@@ -40,7 +42,9 @@ export async function analyzeImage(base64Image: string, lang: 'en' | 'mr' = 'en'
     return response.text;
   } catch (error) {
     console.error("Gemini Image Analysis Error:", error);
-    return null;
+    return lang === 'en'
+      ? "Image analysis failed. Please ensure your GEMINI_API_KEY is set correctly and you have a stable connection."
+      : "प्रतिमा विश्लेषण अयशस्वी झाले. कृपया तुमची GEMINI_API_KEY योग्यरित्या सेट केल्याची आणि तुमचे कनेक्शन स्थिर असल्याची खात्री करा.";
   }
 }
 

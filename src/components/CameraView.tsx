@@ -27,6 +27,8 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isModelLoading, setIsModelLoading] = useState(true);
+  const [modelError, setModelError] = useState<string | null>(null);
   const lastAnalysisTime = useRef<number>(0);
 
   const speak = (text: string) => {
@@ -57,9 +59,25 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
 
   useEffect(() => {
     const loadModel = async () => {
-      await tf.ready();
-      const loadedModel = await cocoSsd.load();
-      setModel(loadedModel);
+      try {
+        setIsModelLoading(true);
+        setModelError(null);
+        await tf.ready();
+        // Try to use WebGL, fallback to CPU if needed
+        try {
+          await tf.setBackend('webgl');
+        } catch (e) {
+          console.warn("WebGL not supported, falling back to CPU");
+          await tf.setBackend('cpu');
+        }
+        const loadedModel = await cocoSsd.load();
+        setModel(loadedModel);
+        setIsModelLoading(false);
+      } catch (err) {
+        console.error("Model loading failed:", err);
+        setModelError(err instanceof Error ? err.message : String(err));
+        setIsModelLoading(false);
+      }
     };
     loadModel();
   }, []);
@@ -96,67 +114,71 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
 
   const detectFrame = async () => {
     if (model && videoRef.current && videoRef.current.readyState === 4) {
-      const predictions = await model.detect(videoRef.current);
-      setDetections(predictions);
-      
-      // Draw on canvas
-      const ctx = canvasRef.current?.getContext('2d');
-      if (ctx && canvasRef.current) {
-        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      try {
+        const predictions = await model.detect(videoRef.current);
+        setDetections(predictions);
         
-        // Pulse factor based on time
-        const time = Date.now();
-        const pulse = Math.sin(time / 300) * 0.1 + 1; // Pulses between 0.9 and 1.1
-        const opacity = 0.6 + Math.sin(time / 300) * 0.3; // Opacity pulses too
-
-        predictions.forEach(prediction => {
-          const [x, y, width, height] = prediction.bbox;
+        // Draw on canvas
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx && canvasRef.current) {
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           
-          // Dynamic AR Bounding Box
-          ctx.strokeStyle = `rgba(34, 211, 238, ${opacity})`;
-          ctx.lineWidth = 3 * pulse;
-          
-          // Draw AR corners instead of full box for a more futuristic look
-          const cornerSize = Math.min(width, height) * 0.2;
-          ctx.beginPath();
-          // Top Left
-          ctx.moveTo(x, y + cornerSize); ctx.lineTo(x, y); ctx.lineTo(x + cornerSize, y);
-          // Top Right
-          ctx.moveTo(x + width - cornerSize, y); ctx.lineTo(x + width, y); ctx.lineTo(x + width, y + cornerSize);
-          // Bottom Left
-          ctx.moveTo(x, y + height - cornerSize); ctx.lineTo(x, y + height); ctx.lineTo(x + cornerSize, y + height);
-          // Bottom Right
-          ctx.moveTo(x + width - cornerSize, y + height); ctx.lineTo(x + width, y + height); ctx.lineTo(x + width, y + height - cornerSize);
-          ctx.stroke();
+          // Pulse factor based on time
+          const time = Date.now();
+          const pulse = Math.sin(time / 300) * 0.1 + 1; // Pulses between 0.9 and 1.1
+          const opacity = 0.6 + Math.sin(time / 300) * 0.3; // Opacity pulses too
 
-          // Subtle full box
-          ctx.strokeStyle = `rgba(34, 211, 238, ${opacity * 0.2})`;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, width, height);
-          
-          // Dynamic label size based on component size (distance proxy)
-          const fontSize = Math.max(12, Math.min(20, width / 12));
-          ctx.font = `bold ${fontSize}px Inter`;
-          const label = `${prediction.class.toUpperCase()} ${Math.round(prediction.score * 100)}%`;
-          const textWidth = ctx.measureText(label).width;
+          predictions.forEach(prediction => {
+            const [x, y, width, height] = prediction.bbox;
+            
+            // Dynamic AR Bounding Box
+            ctx.strokeStyle = `rgba(34, 211, 238, ${opacity})`;
+            ctx.lineWidth = 3 * pulse;
+            
+            // Draw AR corners instead of full box for a more futuristic look
+            const cornerSize = Math.min(width, height) * 0.2;
+            ctx.beginPath();
+            // Top Left
+            ctx.moveTo(x, y + cornerSize); ctx.lineTo(x, y); ctx.lineTo(x + cornerSize, y);
+            // Top Right
+            ctx.moveTo(x + width - cornerSize, y); ctx.lineTo(x + width, y); ctx.lineTo(x + width, y + cornerSize);
+            // Bottom Left
+            ctx.moveTo(x, y + height - cornerSize); ctx.lineTo(x, y + height); ctx.lineTo(x + cornerSize, y + height);
+            // Bottom Right
+            ctx.moveTo(x + width - cornerSize, y + height); ctx.lineTo(x + width, y + height); ctx.lineTo(x + width, y + height - cornerSize);
+            ctx.stroke();
 
-          // Label Background
-          ctx.fillStyle = `rgba(0, 20, 30, ${opacity * 0.8})`;
-          const labelY = y > fontSize + 10 ? y - 10 : y + fontSize + 10;
-          ctx.roundRect(x, labelY - fontSize, textWidth + 12, fontSize + 6, 4);
-          ctx.fill();
+            // Subtle full box
+            ctx.strokeStyle = `rgba(34, 211, 238, ${opacity * 0.2})`;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, width, height);
+            
+            // Dynamic label size based on component size (distance proxy)
+            const fontSize = Math.max(12, Math.min(20, width / 12));
+            ctx.font = `bold ${fontSize}px Inter`;
+            const label = `${prediction.class.toUpperCase()} ${Math.round(prediction.score * 100)}%`;
+            const textWidth = ctx.measureText(label).width;
 
-          // Label Text
-          ctx.fillStyle = '#22d3ee';
-          ctx.fillText(label, x + 6, labelY - 2);
+            // Label Background
+            ctx.fillStyle = `rgba(0, 20, 30, ${opacity * 0.8})`;
+            const labelY = y > fontSize + 10 ? y - 10 : y + fontSize + 10;
+            ctx.roundRect(x, labelY - fontSize, textWidth + 12, fontSize + 6, 4);
+            ctx.fill();
 
-          // Live AI Analysis Trigger (every 5 seconds if scanning)
-          const now = Date.now();
-          if (isScanning && prediction.score > 0.8 && now - lastAnalysisTime.current > 5000) {
-            lastAnalysisTime.current = now;
-            performLiveAnalysis();
-          }
-        });
+            // Label Text
+            ctx.fillStyle = '#22d3ee';
+            ctx.fillText(label, x + 6, labelY - 2);
+
+            // Live AI Analysis Trigger (every 5 seconds if scanning)
+            const now = Date.now();
+            if (isScanning && prediction.score > 0.8 && now - lastAnalysisTime.current > 5000) {
+              lastAnalysisTime.current = now;
+              performLiveAnalysis();
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Detection error:", err);
       }
     }
     if (isScanning) {
@@ -284,6 +306,29 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
       {/* Camera Section */}
       <div className="lg:col-span-2 space-y-6">
         <div className="relative aspect-video rounded-3xl overflow-hidden border border-white/10 bg-black shadow-2xl">
+          {isModelLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-20">
+              <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-cyan-400 font-medium animate-pulse">
+                {lang === 'en' ? 'Loading AI Vision Model...' : 'AI व्हिजन मॉडेल लोड होत आहे...'}
+              </p>
+            </div>
+          )}
+
+          {modelError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900/90 z-20">
+              <AlertCircle className="text-red-400 mb-4" size={48} />
+              <h3 className="text-xl font-bold mb-2">Model Error</h3>
+              <p className="text-slate-400 text-sm mb-4">{modelError}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-6 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all"
+              >
+                Reload App
+              </button>
+            </div>
+          )}
+
           {cameraError ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900/80 backdrop-blur-md z-10">
               <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
@@ -294,15 +339,36 @@ export default function CameraView({ lang, voiceCommand }: CameraViewProps) {
               </h3>
               <p className="text-slate-400 text-sm mb-6 max-w-xs">
                 {lang === 'en' 
-                  ? 'To use the AI Vision on mobile, please open the app in a new tab or grant camera permissions in your browser settings.' 
-                  : 'मोबाईलवर AI व्हिजन वापरण्यासाठी, कृपया नवीन टॅबमध्ये ॲप उघडा किंवा तुमच्या ब्राउझर सेटिंग्जमध्ये कॅमेरा परवानग्या द्या.'}
+                  ? 'To use AI Vision, please grant camera permissions. If you are in the AI Studio preview, opening in a new tab is required.' 
+                  : 'AI व्हिजन वापरण्यासाठी, कृपया कॅमेरा परवानग्या द्या. जर तुम्ही AI स्टुडिओ पूर्वावलोकनात असाल, तर नवीन टॅबमध्ये उघडणे आवश्यक आहे.'}
               </p>
+
+              <div className="bg-white/5 rounded-2xl p-4 mb-6 text-left w-full max-w-xs border border-white/5">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">
+                  {lang === 'en' ? 'How to fix:' : 'कसे दुरुस्त करावे:'}
+                </p>
+                <ul className="text-xs text-slate-400 space-y-2">
+                  <li className="flex gap-2">
+                    <span className="text-cyan-400 font-bold">1.</span>
+                    {lang === 'en' ? 'Click "Open in New Tab" below.' : 'खालील "नवीन टॅबमध्ये उघडा" वर क्लिक करा.'}
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-cyan-400 font-bold">2.</span>
+                    {lang === 'en' ? 'Click the lock icon (🔒) in the address bar.' : 'ॲड्रेस बारमधील लॉक आयकॉन (🔒) वर क्लिक करा.'}
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-cyan-400 font-bold">3.</span>
+                    {lang === 'en' ? 'Set "Camera" to "Allow".' : '"कॅमेरा" "परवानगी द्या" वर सेट करा.'}
+                  </li>
+                </ul>
+              </div>
+
               <div className="flex flex-col gap-3 w-full max-w-xs">
                 <a 
                   href={window.location.href} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="w-full py-3 rounded-xl bg-cyan-500 text-black font-bold flex items-center justify-center gap-2 hover:bg-cyan-400 transition-all"
+                  className="w-full py-4 rounded-xl bg-cyan-500 text-black font-bold flex items-center justify-center gap-2 hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)]"
                 >
                   <ExternalLink size={18} />
                   {lang === 'en' ? 'Open in New Tab' : 'नवीन टॅबमध्ये उघडा'}
